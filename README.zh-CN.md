@@ -29,7 +29,7 @@ AI 从头到尾没看过这一层。
 ## 安装（30 秒）
 
 ```bash
-git clone https://github.com/YOUR-NAME/env-icu.git
+git clone https://github.com/xsw77492-code/env-icu.git
 
 # Claude Code（个人技能目录）；其它 Agent 替换成对应目录
 cp -r env-icu ~/.claude/skills/env-icu

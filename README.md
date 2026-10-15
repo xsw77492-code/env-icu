@@ -29,7 +29,7 @@ Not magic. It won't fix everything. But it won't make things worse.
 ## Install (30 seconds)
 
 ```bash
-git clone https://github.com/YOUR-NAME/env-icu.git
+git clone https://github.com/xsw77492-code/env-icu.git
 
 # Claude Code (personal skills dir) — adapt for your agent
 cp -r env-icu ~/.claude/skills/env-icu
