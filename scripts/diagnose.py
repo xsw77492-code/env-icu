@@ -520,7 +520,7 @@ def render_markdown(r):
     a("")
     a("---")
     a("")
-    a("*本报告由 env-icu diagnose 生成。脚本为只读操作，未修改任何环境。*")
+    a("-- env-icu diagnose · 只读检查，未改动任何环境")
     return "\n".join(L)
 
 

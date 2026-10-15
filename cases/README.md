@@ -1,6 +1,6 @@
 # cases — 真实排障案例库
 
-案例是 env-icu 最有价值的资产：每个案例都是一条完整的「症状 → 证据 → 根因 → 修复」链路。
+每个案例记录一次完整的排障链路：症状 → 证据 → 根因 → 修复。按下面的格式提交。
 
 ## 提交格式
 
@@ -39,6 +39,9 @@
 | 001 | 裸 pip 命令与当前解释器错位 | 多环境错位 |
 | 002 | torch 悄悄装成了 CPU 版 | GPU / CUDA |
 | 003 | PyPI 直连超时（中国大陆） | 网络 / 镜像源 |
+| 004 | PowerShell 拒绝执行 venv 激活脚本 | 虚拟环境 |
+| 005 | 服务器 import cv2 报 libgomp 缺失 | 系统库 |
+| 006 | numpy 大版本升级后 opencv/pandas 罢工 | 版本 / ABI |
 
 ---
 
@@ -136,3 +139,98 @@ python -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simp
 ### 防复发
 
 新机器初始化的第一件事：配置 pip 镜像源。
+
+---
+
+## 案例 004: PowerShell 拒绝执行 venv 激活脚本
+
+- 来源: 社区高频模式（脱敏）
+- 平台: Windows 10 / 11
+- 现象: `.\venv\Scripts\Activate.ps1` 报「无法加载文件……因为在此系统上禁止运行脚本」
+- 环境: 全新 Windows 机器，Python 官网安装，venv 创建过程本身无报错
+
+### 排查过程
+
+1. `Get-ExecutionPolicy` → `Restricted`（PowerShell 的默认策略）
+2. 确认 venv 本身完好：同一 venv 用 cmd 的 `activate.bat` 可以正常激活
+3. 问题定位：不是环境坏了，是激活脚本的执行权限被拦
+
+### 根因
+
+PowerShell 的执行策略禁止运行 `.ps1` 脚本，与 venv 本身无关。看起来像环境问题，其实是权限问题。
+
+### 修复
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+新开终端后重新激活。如果策略被组策略锁定（`Get-ExecutionPolicy -List` 里 MachinePolicy 一栏非空），这条命令会无效——改用 cmd 跑 `activate.bat`，不要和 IT 策略较劲。
+
+### 防复发
+
+Windows 新机初始化清单加上这一条：`Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`。
+
+---
+
+## 案例 005: 服务器上 import cv2 报 libgomp 缺失
+
+- 来源: 社区高频模式（脱敏）
+- 平台: Ubuntu 22.04 服务器（无桌面环境）
+- 现象: `pip install opencv-python` 显示安装成功，`import cv2` 报 `ImportError: libgomp.so.1: cannot open shared object file: No such file or directory`
+- 环境: 最小化安装的服务器，Python 3.10 venv
+
+### 排查过程
+
+1. `ldconfig -p | grep libgomp` → 系统里确实没有这个库
+2. `python -m pip show opencv-python` → 包本身安装完好
+3. 排除掉"包装坏了"的可能，缺口在系统层
+
+### 根因
+
+opencv 的预编译轮子依赖系统的 libgomp（GNU OpenMP 运行时），精简安装的服务器没有预置。
+
+### 修复
+
+```bash
+sudo apt-get install libgomp1
+python -c "import cv2; print(cv2.__version__)"    # 验证
+```
+
+没有 root 权限时改用 `opencv-python-headless`（专为无图形界面的服务器准备），或用 conda 安装。
+
+### 防复发
+
+服务器初始化脚本里一次性装齐常见运行时库：libgomp1、libgl1、libglib2.0-0。
+
+---
+
+## 案例 006: numpy 大版本升级后 opencv/pandas 集体罢工
+
+- 来源: 社区高频模式（脱敏）
+- 平台: macOS
+- 现象: 某次 `pip install` 后（numpy 被依赖解析带动升到 2.x），opencv 报 `numpy.core.multiarray failed to import`，pandas 报同类错误
+- 环境: Python 3.11 venv，数据科学常用包齐全
+
+### 排查过程
+
+1. `python -c "import numpy; print(numpy.__version__)"` → 2.1.0（升级前是 1.26）
+2. `python -m pip show opencv-python` → 4.5.x，编译年代对应 numpy 1.x
+3. 链条清晰：numpy 主版本跳变，旧轮子链接的 C 接口被移除
+
+### 根因
+
+numpy 从 1.x 升到 2.x，旧版 opencv / pandas 的 C 扩展编译时链接的 ABI 不再存在。
+
+### 修复
+
+```bash
+python -m pip install --upgrade opencv-python pandas
+python -c "import numpy, cv2, pandas; print('OK')"    # 验证
+```
+
+如果某个包确实没有适配 numpy 2.x 的版本，止损：`python -m pip install "numpy<2"`，并把约束写进 requirements.txt。
+
+### 防复发
+
+numpy 这类基石包写死版本；升级主版本后，依赖它的包成对升级、逐一验证。

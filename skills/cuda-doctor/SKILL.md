@@ -54,7 +54,7 @@ torch.cuda.is_available() == False
 
 **铁律：不要去背版本号。去 pytorch.org 的 Get Started 页面，选好你的组合（OS + pip + CUDA 版本），直接复制官方命令。**
 
-原因：torch/CUDA/驱动三者版本矩阵每个月都在变，记忆中的组合大概率已过期——这正是很多教程害人的地方。
+原因：torch/CUDA/驱动三者版本矩阵每个月都在变，记忆中的组合大概率已过期。很多老教程坑人就坑在这里。
 
 标准操作（以 CUDA 12.x 为例，实际以官网为准）：
 
@@ -80,7 +80,7 @@ python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda
    conda 的 `cudatoolkit` 是环境内的 runtime 包，不改变系统驱动。驱动只能通过系统级安装更新。
 
 3. **"以前能用，重装系统后不行了"**
-   优先按决策树第 2 步查是否装成了 CPU 版——重装后从默认源 `pip install torch` 是最高频的翻车现场。
+   优先按决策树第 2 步查是否装成了 CPU 版。重装系统后从默认源 `pip install torch` 装到的就是它，这是最高频的翻车现场。
 
 ## 验证标准
 
@@ -91,7 +91,7 @@ nvidia-smi                                  # 能正常输出显卡信息
 python -c "import torch; assert torch.cuda.is_available(); print('GPU:', torch.cuda.get_device_name(0)); print('OK')"
 ```
 
-两项都通过才算修复完成。若 `is_available()` 为 True 但分配张量报 out of memory / 无 kernel image，属于显存或更深层的运行时问题，超出本技能范围——如实告知用户，不要硬修。
+两项都通过才算修复完成。若 `is_available()` 为 True 但分配张量报 out of memory / 无 kernel image，属于显存或更深层的运行时问题，超出本技能范围，如实告知用户，不要硬修。
 
 ## 输出要求
 

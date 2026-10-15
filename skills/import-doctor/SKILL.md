@@ -5,7 +5,7 @@ description: Diagnose and fix Python import failures — ModuleNotFoundError, Im
 
 # import-doctor — 导入问题专科
 
-处理一切 `ModuleNotFoundError` / `ImportError`。核心方法论：**报错分两类——"没装对地方"和"装对了但解释器不对"。九成的"装了却找不到"属于后者。**
+处理一切 `ModuleNotFoundError` / `ImportError`。核心方法论：**报错分两类——"没装对地方"和"装对了但解释器不对"。大部分"装了却找不到"属于后者。**
 
 ## 分诊：先确认三件事
 

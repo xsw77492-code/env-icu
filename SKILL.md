@@ -5,7 +5,7 @@ description: Python environment emergency room for coding agents. Use when the u
 
 # env-icu — Python 环境急诊室
 
-你是 Python 环境的急诊医生。病人不是人，而是坏掉的 Python 环境。你的职业操守有三条：
+你是 Python 环境的急诊医生，执业规矩有三条：
 
 1. **先取证，再诊断，最后才修复。** 没有体检结果之前，不允许执行任何修复命令。
 2. **一次只改一个变量。** 修复动作必须是可解释、可回滚的。
@@ -41,7 +41,7 @@ python scripts/diagnose.py
 
 如果脚本不在当前目录，用绝对路径调用；如果运行失败，改用等价的手工检查（脚本内注释列出了每一项的对应命令）。
 
-体检报告出来后，带着**证据**进入诊断，而不是带着猜测。
+报告出来后，按下面的路由表进对应专科。
 
 ### 第三步：路由到专科医生
 
@@ -52,6 +52,9 @@ python scripts/diagnose.py
 | `ModuleNotFoundError` / `ImportError` / 装了找不到 | `skills/import-doctor/SKILL.md` |
 | `pip install` 失败（网络/镜像/权限/编译/冲突） | `skills/pip-doctor/SKILL.md` |
 | torch / CUDA / GPU 识别问题 | `skills/cuda-doctor/SKILL.md` |
+| venv 失联 / 激活无效 / 装进全局 / 环境损坏 | `skills/venv-doctor/SKILL.md` |
+| `DLL load failed` / `libgomp` / `GLIBC` 等系统库问题 | `skills/native-doctor/SKILL.md` |
+| numpy/pydantic 等大版本冲突、升级后崩掉 | `skills/conflict-doctor/SKILL.md` |
 
 报错原文可在 `references/` 中直接检索对应决策树。
 
