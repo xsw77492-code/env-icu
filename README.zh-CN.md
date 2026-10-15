@@ -2,88 +2,92 @@
 
 **重装系统之前的最后一站。**
 
-一个 Agent 技能包，把任何编码 Agent 变成 Python 环境排障医生——先取证、再修复，绝不把环境修得更坏。
-
-**简体中文** | [English](README.md)
+[English](README.md)
 
 ---
 
-## 问题
+## 起因
 
-Python 环境坏掉的时候，你的编码 Agent 通常会把事情弄得更糟：
+说个真实的事。
 
-- 对一切执行 `pip install --upgrade`，指望撞对一个
-- 幻觉出根本不存在的版本号和包名
-- `sudo pip install` 直接把系统 Python 搞坏
-- 从 2019 年的 GitHub issue 里抄来一段建议，而那个库版本你根本没有
+我这台电脑里有 8 个 Python 解释器。不是故意的，是这些年装各种工具慢慢攒出来的。某天有个包死活 import 不进去，我让 AI 助手帮我修。
 
-根因是：**Agent 在猜，而不是在诊断。** env-icu 给它的是一套纪律：
+它很自信。先让我 `pip install --upgrade pip setuptools wheel`，再让我把包重装一遍。照做之后，问题从一个包装不上，变成了三个环境开始互相污染。
 
-> 先取证，再下诊断，最后才修复。绝不让环境更糟。
+最后救场的是一条命令：`python -m pip -V`。输出告诉我，裸 `pip` 指向的是 Python 3.11，而我的代码跑在 3.14 上。折腾半天，全装进了我不会用的那个环境。
+
+AI 从头到尾没看过这一层。
+
+后来这种事我反复见到，AI 修 Python 环境的通病不是水平不够，是**它在猜，而且猜得很自信**：幻觉出不存在的版本号、无脑全量升级、把包装进你根本没在用的解释器。而环境问题最麻烦的地方是，它被修坏的代价往往延迟爆发——当场看着都正常，几天后开始连环报错。
+
+所以有了 env-icu。它是一个 Agent 技能包，给 AI 助手立了三条规矩：
+
+> **先体检，再诊断，最后才动手。**
+
+它不魔法，也修不好所有问题。但它至少不会把你的环境修得更坏。
 
 ## 安装（30 秒）
 
 ```bash
-git clone https://github.com/你的用户名/env-icu.git
+git clone https://github.com/YOUR-NAME/env-icu.git
 
-# Claude Code（个人技能目录）——其它 Agent 请替换为对应目录
+# Claude Code（个人技能目录）——其它 Agent 替换成对应目录
 cp -r env-icu ~/.claude/skills/env-icu
 ```
 
-兼容任何支持 `SKILL.md` / Agent Skills 标准的 Agent：Claude Code、Codex、Cursor、OpenClaw、DeepSeek Harness 等。把仓库指向 Agent，或放入它的技能目录即可。
+兼容任何支持 `SKILL.md` / Agent Skills 标准的 Agent：Claude Code、Codex、Cursor、OpenClaw、DeepSeek Harness 等。
 
-## 快速演示
+## 用起来是什么样
 
 ```text
-用户：我明明装了 requests，脚本却一直报：
+你：  我明明装了 requests，脚本却一直报：
      ModuleNotFoundError: No module named 'requests'
 
-Agent：（加载 env-icu，先运行 scripts/diagnose.py）
+Agent：（加载 env-icu，先跑体检脚本，不急着修）
 
      体检结论：
        - pip 属于  C:\Python314\python.exe
        - 而脚本运行在  .venv\Scripts\python.exe（3.11）
-     这是两个不同的环境，包装到了你没在用的解释器里。
+     两个不同的环境，包装到了你没在用的那个。
 
      修复：  python -m pip install requests
      验证：  python -c "import requests; print(requests.__version__)"
 ```
 
-不靠猜。Agent 先测量了环境，然后修的是真正的问题。
+注意 Agent 的第一步：不是修，是看。
 
-## 里面有什么
+## 内容清单
 
-| 技能 | 处理的症状 | 状态 |
+| 技能 | 处理的问题 | 状态 |
 |---|---|---|
-| `import-doctor` | `ModuleNotFoundError`、`ImportError`、"装了但找不到" | 可用 |
-| `cuda-doctor` | `torch.cuda.is_available()` 返回 `False`、CUDA 驱动/版本不匹配 | 可用 |
-| `pip-doctor` | 安装失败：网络/镜像源、权限、缺少预编译包、依赖冲突 | 可用 |
-| `venv-doctor` | 虚拟环境未激活、`pip` 装进了全局解释器 | 计划中 |
-| `native-doctor` | `DLL load failed`、`libgomp`、`GLIBC` 缺失等系统库问题 | 计划中 |
-| `conflict-doctor` | numpy / pydantic 等版本冲突、ABI 不兼容 | 计划中 |
+| `import-doctor` | `ModuleNotFoundError`、"装了但找不到" | 可用 |
+| `cuda-doctor` | torch 认不出显卡、CUDA 版本地狱 | 可用 |
+| `pip-doctor` | 装不上：网络、镜像源、权限、编译、依赖冲突 | 可用 |
+| `venv-doctor` | 虚拟环境失联、pip 装进全局、激活失败 | 可用 |
+| `native-doctor` | `DLL load failed`、`libgomp`、`GLIBC` 缺失 | 计划中 |
+| `conflict-doctor` | numpy/pydantic 版本冲突、ABI 不兼容 | 计划中 |
 
-另外：
+另外有三样东西：
 
-- **`scripts/diagnose.py`** — 零依赖的环境 X 光机。一条命令给出全貌：解释器路径、`PATH` 里的每一个 Python、pip 归属、venv/conda 状态、GPU/驱动状态、镜像源配置，以及自动标红的风险项。
-- **`references/`** — 按报错原文索引的决策树 + 安全协议。
-- **`cases/`** — 真实排障案例（脱敏）。
+- **`scripts/diagnose.py`** — 体检脚本。零依赖、只读，一条命令列出解释器、`PATH` 上的所有 Python、pip 归属、venv/conda 状态、GPU、镜像源，并自动标出可疑项。就是它第一个在我自己机器上抓到了"裸 pip 指向另一个环境"。
+- **`references/`** — 按报错原文索引的决策树，外加一份安全协议。
+- **`cases/`** — 排障案例，脱敏收录。
 
-## 设计原则
+## 三条规矩
 
-1. **先取证** — 没有体检报告不允许动手修复。`diagnose.py` 拍片，医生读片。
-2. **安全协议** — 明确列出禁止操作（盲目升级、`sudo pip`、污染系统 Python）。目标不只是修好环境，而是**绝不让它更坏**。见 [`references/safety-protocol.md`](references/safety-protocol.md)。
-3. **报错原文索引** — 决策树以完整的报错文本为键。这个仓库的设计目标就是：有人搜索报错时，它就该出现在答案里。
-4. **中文优先的双语设计** — 中文和英文都是一等公民，因为中国的 Python 环境有它自己的经典故障模式：pip 镜像源配置、Windows + conda、CUDA/torch 版本地狱。
+1. **先体检** — 没有体检报告，不允许下"根因"结论，更不允许动手。
+2. **安全闸门** — 有份明确的禁止清单（盲目升级、`sudo pip`、动系统 Python……）。目标不只是修好，更是不修坏。见 [`references/safety-protocol.md`](references/safety-protocol.md)。
+3. **报错即索引** — 决策树按报错原文组织。有人搜报错，它就该出现。
 
 ## 路线图
 
-- **v0.1**（当前）：3 位医生、`diagnose.py`、安全协议、报错决策树、首批案例
-- **v0.2**：`venv-doctor`、`native-doctor`、`conflict-doctor`；扩充案例库
-- **之后**：社区提交的报错决策树、按平台整理的检查清单（Windows / WSL / Linux / macOS）
+- 当前：四位医生（import / cuda / pip / venv）+ 体检脚本 + 安全协议
+- 下一步：native-doctor、conflict-doctor；案例库扩充
+- 更远：社区提交的报错决策树；按平台整理的清单（Windows / WSL / Linux / macOS）
 
-## 参与贡献
+## 参与
 
-最有价值的贡献是**案例**：一个真实环境问题的完整诊断路径（脱敏后）。格式见 [`cases/`](cases/)。也欢迎修正决策树、为 `diagnose.py` 添加新的风险检测规则。
+最有价值的贡献是一个案例：你踩过的坑、你的排查路径，脱敏之后就能帮到下一个人。格式见 [`cases/`](cases/)。
 
 ## 许可证
 

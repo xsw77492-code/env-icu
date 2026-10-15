@@ -2,89 +2,92 @@
 
 **The last stop before you reinstall your OS.**
 
-An agent skill pack that turns any coding agent into a Python environment troubleshooter — one that gathers evidence first, and never makes a broken environment worse.
-
 [简体中文](README.zh-CN.md)
 
 ---
 
-## The problem
+## Why this exists
 
-When a Python environment breaks, your coding agent usually makes it worse:
+True story.
 
-- `pip install --upgrade` on everything, hoping something sticks
-- Hallucinated version numbers and packages that do not exist
-- `sudo pip install` that corrupts the system Python
-- Advice copy-pasted from a 2019 GitHub issue for a library you do not even have
+This machine has 8 Python interpreters on it. Not by design — they accumulated over years of installing one tool after another. One day a package refused to import, so I asked my AI assistant to sort it out.
 
-The root cause: **agents guess instead of diagnosing.** env-icu gives them a discipline instead:
+It was very confident. First `pip install --upgrade pip setuptools wheel`, then reinstall the package. After that, "one package won't import" had grown into "three environments contaminating each other."
 
-> Evidence first. Diagnose, then fix. Never break it worse.
+What finally found it was a single command: `python -m pip -V`. The bare `pip` command pointed at Python 3.11. My code ran on 3.14. Everything had been "fixed" into an interpreter I never use.
+
+The agent never looked at that layer.
+
+The pattern keeps repeating: agents are great at guessing, terrible at measuring. Hallucinated versions, blanket upgrades, packages installed into the wrong interpreter. And environment damage is patient — everything looks fine on the spot, then things start breaking days later.
+
+So here's env-icu: a skill pack that gives agents three rules.
+
+> **Measure first. Diagnose second. Touch the environment last.**
+
+Not magic. It won't fix everything. But it won't make things worse.
 
 ## Install (30 seconds)
 
 ```bash
 git clone https://github.com/YOUR-NAME/env-icu.git
 
-# Claude Code (personal skills directory) — adapt the path for your agent
+# Claude Code (personal skills dir) — adapt for your agent
 cp -r env-icu ~/.claude/skills/env-icu
 ```
 
-Works with any agent that supports the `SKILL.md` / Agent Skills standard: Claude Code, Codex, Cursor, OpenClaw, DeepSeek Harness, and others. Point the agent at this repository, or drop it into your agent's skills directory.
+Works with any agent that reads `SKILL.md` / Agent Skills: Claude Code, Codex, Cursor, OpenClaw, DeepSeek Harness, and others.
 
-## Quick demo
+## What using it looks like
 
 ```text
-User:   I installed requests, but my script says:
+User:   I installed requests, but my script keeps saying:
         ModuleNotFoundError: No module named 'requests'
 
-Agent:  (loads env-icu, runs scripts/diagnose.py first)
+Agent:  (loads env-icu, runs the diagnostic script first — no fixing yet)
 
-        Evidence:
+        Findings:
           - pip belongs to  C:\Python314\python.exe
           - your script runs under  .venv\Scripts\python.exe (3.11)
-        Two different environments. The package went to the interpreter
-        you are not using.
+        Two different environments. The package went to the one you don't use.
 
         Fix:    python -m pip install requests
         Verify: python -c "import requests; print(requests.__version__)"
 ```
 
-No guessing. The agent measured first, then fixed the actual problem.
+Notice the first move: measure, not fix.
 
 ## What's inside
 
-| Skill | Symptoms it handles | Status |
+| Skill | Handles | Status |
 |---|---|---|
-| `import-doctor` | `ModuleNotFoundError`, `ImportError`, "I installed it but it's not found" | available |
-| `cuda-doctor` | `torch.cuda.is_available()` returns `False`, CUDA driver/version mismatch | available |
-| `pip-doctor` | install failures: network/mirrors, permissions, missing wheels, dependency conflicts | available |
-| `venv-doctor` | venv not activating, `pip` installing into the global interpreter | roadmap |
-| `native-doctor` | `DLL load failed`, `libgomp`, `GLIBC` not found, missing system libraries | roadmap |
-| `conflict-doctor` | numpy / pydantic version conflicts, ABI incompatibilities | roadmap |
+| `import-doctor` | `ModuleNotFoundError`, "installed but not found" | available |
+| `cuda-doctor` | torch can't see the GPU, CUDA version hell | available |
+| `pip-doctor` | install failures: network, mirrors, permissions, builds, conflicts | available |
+| `venv-doctor` | broken activation, pip into global, moved venvs | available |
+| `native-doctor` | `DLL load failed`, `libgomp`, `GLIBC` | planned |
+| `conflict-doctor` | numpy / pydantic conflicts, ABI mismatches | planned |
 
-Plus:
+Plus three things:
 
-- **`scripts/diagnose.py`** — a zero-dependency environment X-ray. One command, full picture: interpreter paths, every Python on your `PATH`, pip ownership, venv/conda state, GPU/driver status, mirror config, and automatic red flags.
-- **`references/`** — decision trees keyed by the exact error text, plus a safety protocol.
-- **`cases/`** — real-world debugging cases, anonymized.
+- **`scripts/diagnose.py`** — a zero-dependency, read-only checkup. One command lists every Python on your `PATH`, pip ownership, venv/conda state, GPU status, mirror config, and flags what looks off. This is the script that first caught the "bare pip points to another environment" problem on my own machine.
+- **`references/`** — decision trees indexed by raw error text, plus the safety protocol.
+- **`cases/`** — anonymized debugging cases.
 
-## Design principles
+## Three rules
 
-1. **Evidence first** — no fix is allowed before the environment is measured. `diagnose.py` produces the X-ray; the doctors read it.
-2. **Safety protocol** — a hard list of forbidden operations (blind upgrades, `sudo pip`, system Python pollution). The goal is not only to fix the environment, but to *never make it worse*. See [`references/safety-protocol.md`](references/safety-protocol.md).
-3. **Error-text indexed** — decision trees are keyed by the exact error text you paste in. The repository is designed to be the answer when someone searches their error message.
-4. **Bilingual by design** — Chinese and English are both first-class, because China's Python setup has its own classic failure modes: pip mirror configuration, Windows + conda, CUDA/torch "version hell".
+1. **Measure first.** No root-cause claim, and no fixing, before the environment is measured.
+2. **Safety gate.** An explicit forbidden-operations list (blind upgrades, `sudo pip`, colliding with the system Python). The goal isn't just to fix it — it's to not make it worse. See [`references/safety-protocol.md`](references/safety-protocol.md).
+3. **Errors are the index.** Decision trees are keyed by raw error text, so someone pasting their error lands in the right place.
 
 ## Roadmap
 
-- **v0.1** (current): 3 doctors, `diagnose.py`, safety protocol, error trees, first cases
-- **v0.2**: `venv-doctor`, `native-doctor`, `conflict-doctor`; expanded case library
-- **later**: community-submitted error trees, per-platform checklists (Windows / WSL / Linux / macOS)
+- Now: four doctors (import / cuda / pip / venv), the diagnostic script, the safety protocol
+- Next: native-doctor, conflict-doctor; more cases
+- Later: community-submitted error trees; per-platform checklists (Windows / WSL / Linux / macOS)
 
 ## Contributing
 
-The most valuable contribution is a **case**: a real environment problem with its diagnosis path, anonymized. See [`cases/`](cases/) for the format. Error-tree corrections and new red-flag rules for `diagnose.py` are also welcome.
+The most valuable contribution is a case: a problem you actually hit, and how you found it. Anonymized is fine. Format guide in [`cases/`](cases/).
 
 ## License
 
